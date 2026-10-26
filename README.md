@@ -23,7 +23,7 @@ paths. `Containerfile` is the entire build definition.
 
 `ghcr.io/nephilus/nono-kata-fixture@sha256:c6ff8bbfcdd21ee42feae04a8f0a0503990215e3852ad18324c25838fe673562`
 
-Published 2026-10-26 from commit `4a5ee12` by the workflow below. The package is
+Published 2026-10-26 from commit `b767c90` by the workflow below. The package is
 public: the registry returns an anonymous pull token and the manifest to an
 unauthenticated client.
 
