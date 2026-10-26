@@ -57,16 +57,7 @@ jobs:
           echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
           echo "Published ${image}:20261026@$(cat digest.txt)"
 
-      - name: Make the package public and record the digest
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Record the published digest
         run: |
           set -euo pipefail
-          owner="${GITHUB_REPOSITORY_OWNER,,}"
-          name="${GITHUB_REPOSITORY#*/}"
-          curl -sS -X PATCH \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/user/packages/container/${name}" \
-            -d '{"visibility":"public"}' || echo "visibility change not permitted for this token"
           echo "manifest digest: $(cat digest.txt)"
