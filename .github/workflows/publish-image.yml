@@ -1,0 +1,70 @@
+name: publish fixture image
+
+# Publishes the disposable Kata + nono qualification image to GHCR using the
+# repository's built-in token, so no personal access token or organization
+# grant is involved. The image contains no credentials or repository content:
+# a digest-pinned BusyBox base, the verified nono v0.80.0 binary and three
+# fixed fixture files.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and verify the pinned nono release
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o nono.tar.gz \
+            https://github.com/nolabs-ai/nono/releases/download/v0.80.0/nono-v0.80.0-x86_64-unknown-linux-musl.tar.gz
+          echo "cae6755f1188b561ea02f62995feb8ad87d457f6d5255956ec54f41bbefca31e  nono.tar.gz" | sha256sum -c -
+          mkdir -p extract
+          tar -xzf nono.tar.gz -C extract
+          found="$(find extract -type f -name nono | head -1)"
+          test -n "$found"
+          install -m 0555 "$found" ./nono
+          echo "a66396777ed756dff196ef61cf704abd4feebf58599d41e2da3363bbe90e22af  nono" | sha256sum -c -
+
+      - name: Build the image from the exact Containerfile
+        run: |
+          set -euo pipefail
+          podman build --pull=always -t "localhost/fixture:${GITHUB_SHA}" -f Containerfile .
+          podman inspect --format '{{.Id}}' localhost/fixture:${GITHUB_SHA}
+          podman run --rm --network=none --read-only --cap-drop=ALL \
+            --entrypoint /usr/local/bin/nono localhost/fixture:${GITHUB_SHA} --version
+          podman run --rm --network=none --read-only --cap-drop=ALL \
+            --entrypoint /bin/sh localhost/fixture:${GITHUB_SHA} -c 'id; cat /fixtures/allowed; ls /fixtures'
+
+      - name: Push to GHCR
+        id: push
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY}"
+          echo "${GITHUB_TOKEN}" | podman login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          podman tag "localhost/fixture:${GITHUB_SHA}" "${image}:20261026"
+          podman push "${image}:20261026" --digestfile digest.txt
+          echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
+          echo "Published ${image}:20261026@$(cat digest.txt)"
+
+      - name: Make the package public and record the digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          name="${GITHUB_REPOSITORY#*/}"
+          curl -sS -X PATCH \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/user/packages/container/${name}" \
+            -d '{"visibility":"public"}' || echo "visibility change not permitted for this token"
+          echo "manifest digest: $(cat digest.txt)"
