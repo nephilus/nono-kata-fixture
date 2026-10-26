@@ -21,14 +21,34 @@ paths. `Containerfile` is the entire build definition.
 
 ## Published reference
 
-`ghcr.io/nephilus/nono-kata-fixture:20261026`
+`ghcr.io/nephilus/nono-kata-fixture@sha256:c6ff8bbfcdd21ee42feae04a8f0a0503990215e3852ad18324c25838fe673562`
 
-The workflow prints the immutable manifest digest. Pin deployments by digest,
-never by tag:
+Published 2026-10-26 from commit `4a5ee12` by the workflow below. The package is
+public: the registry returns an anonymous pull token and the manifest to an
+unauthenticated client.
+
+Pin by digest, never by tag:
 
 ```sh
-docker pull ghcr.io/nephilus/nono-kata-fixture@sha256:<manifest-digest>
+podman pull ghcr.io/nephilus/nono-kata-fixture@sha256:c6ff8bbfcdd21ee42feae04a8f0a0503990215e3852ad18324c25838fe673562
 ```
+
+Verified after publication, anonymously:
+
+| Check | Observed |
+| --- | --- |
+| Anonymous manifest fetch | HTTP 200 with a registry token issued without credentials |
+| Image config digest | `sha256:676a3a6eaa08c08fcbfc4a92298ca760990e1ab006f9af837b8e834a5b2f55f9` |
+| `/usr/local/bin/nono` SHA-256 | `a66396777ed756dff196ef61cf704abd4feebf58599d41e2da3363bbe90e22af`, matching the pinned value |
+| `nono --version` | `nono 0.80.0` |
+| Process identity | `uid=10001(10001) gid=10001(10001)` |
+| Fixture contents | `allowed fixture`, `restricted fixture`, `unrelated fixture` |
+
+This manifest digest differs from the 2026-10-25 local build
+(`sha256:99c7f53f5973d1b805baac90ccb215163273f19a4661d236711a39e821bb12a5`)
+because that build was produced offline with `--pull=never` and a different
+layer set. Content identity is established by the matching binary hash, config
+and fixtures above, not by manifest-digest equality.
 
 ## Publishing
 
